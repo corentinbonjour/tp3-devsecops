@@ -165,6 +165,41 @@ jobs:
           command: ./vendor/bin/phpunit --testsuite=Unit
 
 
+  lint-phpmd:
+    executor: php-executor
+    steps:
+      - *attach_workspace
+      - run:
+          name: Install PHPMD
+          command: composer require --dev phpmd/phpmd
+      - run:
+          name: Run PHPMD
+          command: |
+            ./vendor/bin/phpmd analyze --format text --no-progress \
+              --ruleset cleancode --ruleset codesize --ruleset controversial \
+              --ruleset design --ruleset naming --ruleset unusedcode \
+              --reportfile-html phpmd-report.html --ignore-violations-on-exit \
+              src public
+      - store_artifacts:
+          path: phpmd-report.html
+          destination: phpmd-report
+
+
+  lint-php-doc-check:
+    executor: php-executor
+    steps:
+      - *attach_workspace
+      - run:
+          name: Install php-doc-check
+          command: composer require --dev niels-de-blaauw/php-doc-check
+      - run:
+          name: Run php-doc-check
+          command: ./vendor/bin/php-doc-check --ignore-violations-on-exit src public | tee php-doc-check-report.txt
+      - store_artifacts:
+          path: php-doc-check-report.txt
+          destination: php-doc-check-report
+
+
   metrics-phpmetrics:
     executor: php-executor
     steps:
@@ -270,6 +305,12 @@ workflows:
           requires:
             - build-setup
       - test-phpunit:
+          requires:
+            - build-setup
+      - lint-phpmd:
+          requires:
+            - build-setup
+      - lint-php-doc-check:
           requires:
             - build-setup
       - metrics-phpmetrics:
