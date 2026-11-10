@@ -83,7 +83,9 @@ RUN sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available
 # Copy existing application directory contents
 COPY . /var/www/html
 
-RUN rm -Rf /var/www/html/docker
+RUN rm -Rf /var/www/html/Docker
+
+COPY --chmod=755 Docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --working-dir=/var/www/html
 
@@ -99,3 +101,6 @@ WORKDIR /var/www/html
 
 # Exposez le port 80
 EXPOSE 80
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["apache2-foreground"]
