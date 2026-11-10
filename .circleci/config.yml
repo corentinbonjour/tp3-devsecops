@@ -169,13 +169,17 @@ jobs:
     executor: php-executor
     steps:
       - *attach_workspace
-      # phpmd 3.0.0 crashes with RuleSetNotFoundException on its new analyze syntax
       - run:
           name: Install PHPMD
-          command: composer require --dev "phpmd/phpmd:^2.15"
+          command: composer require --dev phpmd/phpmd
       - run:
           name: Run PHPMD
-          command: ./vendor/bin/phpmd src,public text cleancode,codesize,controversial,design,naming,unusedcode --reportfile-html phpmd-report.html --ignore-violations-on-exit
+          command: |
+            ./vendor/bin/phpmd analyze --format text --no-progress \
+              --ruleset cleancode --ruleset codesize --ruleset controversial \
+              --ruleset design --ruleset naming --ruleset unusedcode \
+              --reportfile-html phpmd-report.html --ignore-violations-on-exit \
+              src public
       - store_artifacts:
           path: phpmd-report.html
           destination: phpmd-report
