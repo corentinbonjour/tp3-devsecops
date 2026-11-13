@@ -32,7 +32,7 @@ ENV DATABASE_DRIVER=sqlite
 ENV DATABASE_DATABASE=/var/www/html/database/db.sqlite
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
