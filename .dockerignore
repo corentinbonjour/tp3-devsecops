@@ -30,3 +30,4 @@ Docker
 .phpunit.result.cache
 .vagrant
 vendor
+public/info.php
