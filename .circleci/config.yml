@@ -98,7 +98,7 @@ commands:
             REPOSITORY=$(echo "ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME" | tr '[:upper:]' '[:lower:]' | tr -d '_')
             TAG=$(echo $CIRCLE_BRANCH | tr '[:upper:]' '[:lower:]' | tr '/' '-' | tr -cd '[:alnum:]._-' | cut -c 1-128)
             echo "export IMAGE=$REPOSITORY:$TAG" >> $BASH_ENV
-            echo "$GHCR_READ_PAT" | ssh "${<< parameters.ssh-user >>}@${<< parameters.ssh-host >>}" \
+            echo "$GHCR_PAT" | ssh "${<< parameters.ssh-user >>}@${<< parameters.ssh-host >>}" \
               "docker login ghcr.io -u $GHCR_USERNAME --password-stdin > /dev/null && docker pull -q $REPOSITORY:$TAG; status=\$?; docker logout ghcr.io > /dev/null; exit \$status"
       - run:
           name: Replace the container, roll back if it does not answer
