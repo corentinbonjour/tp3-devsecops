@@ -345,6 +345,37 @@ jobs:
             docker push $REPOSITORY:$TAG
 
 
+  security-scan-image:
+    executor: builder-executor
+    steps:
+      - setup_remote_docker
+      - run:
+          name: Install Trivy
+          command: |
+            set -eo pipefail
+            curl -sSfLO https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_Linux-64bit.tar.gz
+            curl -sSfLO https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_checksums.txt
+            grep " trivy_0.76.1_Linux-64bit.tar.gz$" trivy_0.76.1_checksums.txt | sha256sum -c -
+            tar -xzf trivy_0.76.1_Linux-64bit.tar.gz trivy
+      - run:
+          name: Scan Docker image
+          command: |
+            set -eo pipefail
+            REPOSITORY=$(echo "ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME" | tr '[:upper:]' '[:lower:]' | tr -d '_')
+            TAG=$(echo $CIRCLE_BRANCH | tr '[:upper:]' '[:lower:]' | tr '/' '-' | tr -cd '[:alnum:]._-' | cut -c 1-128)
+            echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+            docker pull -q $REPOSITORY:$TAG
+            docker save $REPOSITORY:$TAG -o image.tar
+            ./trivy image --input image.tar --scanners vuln --output trivy-report.txt
+            cat trivy-report.txt
+      - store_artifacts:
+          path: trivy-report.txt
+          destination: trivy-report
+      - run:
+          name: Fail on fixable critical vulnerabilities
+          command: ./trivy image --input image.tar --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1
+
+
   deploy-ssh-staging:
     executor: simple-executor
     steps:
@@ -423,6 +454,19 @@ workflows:
   container_workflow:
     jobs:
       - build-docker-image:
+          filters:
+            branches:
+              only:
+                - master
+                - main
+                - develop
+                - /^feature\/.*/
+                - /^release\/.*/
+                - /^hotfix\/.*/
+                - /^bugfix\/.*/
+      - security-scan-image:
+          requires:
+            - build-docker-image
           filters:
             branches:
               only:
