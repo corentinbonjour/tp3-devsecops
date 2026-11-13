@@ -87,12 +87,12 @@ commands:
     steps:
       - add_ssh_keys
       - run:
-          name: Trust the server host key
+          name: Add server to known hosts
           command: |
             mkdir -p ~/.ssh
             echo "${<< parameters.ssh-known-hosts >>}" >> ~/.ssh/known_hosts
       - run:
-          name: Pull the image of this branch on the server
+          name: Pull Docker image
           command: |
             set -eo pipefail
             REPOSITORY=$(echo "ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME" | tr '[:upper:]' '[:lower:]' | tr -d '_')
@@ -101,7 +101,7 @@ commands:
             echo "$GHCR_PAT" | ssh "${<< parameters.ssh-user >>}@${<< parameters.ssh-host >>}" \
               "docker login ghcr.io -u $GHCR_USERNAME --password-stdin > /dev/null && docker pull -q $REPOSITORY:$TAG; status=\$?; docker logout ghcr.io > /dev/null; exit \$status"
       - run:
-          name: Replace the container, roll back if it does not answer
+          name: Deploy container
           command: |
             ssh "${<< parameters.ssh-user >>}@${<< parameters.ssh-host >>}" bash -s -- \
               "$IMAGE" "$CIRCLE_SHA1" "<< parameters.container-name >>" "<< parameters.port >>" "<< parameters.env-file >>" \<< 'EOF'
@@ -113,7 +113,7 @@ commands:
 
             built_from=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")
             if [ "$built_from" != "$revision" ]; then
-              echo "$image was built from $built_from, expected $revision: wait for build-docker-image, then rerun this job" >&2
+              echo "Image revision is $built_from, expected $revision" >&2
               exit 1
             fi
 
@@ -129,13 +129,13 @@ commands:
               if curl -fsS --max-time 3 -o /dev/null "http://localhost:$port/"; then
                 docker rm -f "$name-previous" > /dev/null 2>&1 || true
                 docker image prune -f > /dev/null
-                echo "$name now runs $image ($revision)"
+                echo "Deployed $image"
                 exit 0
               fi
               sleep 2
             done
 
-            echo "$name did not answer on port $port, rolling back" >&2
+            echo "Health check failed, rolling back" >&2
             docker logs --tail 30 "$name" >&2 || true
             docker rm -f "$name" > /dev/null
             if docker container inspect "$name-previous" > /dev/null 2>&1; then
@@ -295,7 +295,6 @@ jobs:
     executor: php-executor
     steps:
       - *attach_workspace
-      # phploc is abandoned: through composer it resolves to 2.0.5, the 7.x line only ships as a phar
       - run:
           name: Install phploc
           command: curl -sSfL -o phploc.phar https://phar.phpunit.de/phploc-7.0.2.phar
